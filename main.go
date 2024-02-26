@@ -15,8 +15,9 @@ import (
 
 type Config struct {
 	Debug            bool
-	ListenPort       int `default:"8080" split_words:"true"`
-	IntervalSeconds  int `default:"300" split_words:"true"`
+	ListenPort       int    `default:"8080" split_words:"true"`
+	IntervalSeconds  int    `default:"3600" split_words:"true"`
+	NameLabel        string `default:"default" split_words:"true"`
 	intervalDuration time.Duration
 }
 
@@ -36,10 +37,18 @@ func main() {
 	c.intervalDuration = time.Duration(time.Duration(c.IntervalSeconds) * time.Second)
 	log.Infof("interval: %s", c.intervalDuration.String())
 
+	// Set default status metrics labels with zero value
+	metricRuns.WithLabelValues(c.NameLabel, "succeeded")
+	metricRuns.WithLabelValues(c.NameLabel, "failed")
+	metricRunDuration.WithLabelValues(c.NameLabel, "succeeded")
+	metricRunDuration.WithLabelValues(c.NameLabel, "failed")
+	metricLastRun.WithLabelValues(c.NameLabel, "succeeded")
+	metricLastRun.WithLabelValues(c.NameLabel, "failed")
+
 	// Initial test on startup
 	log.Infof("running initial test")
 	for {
-		if updateSpeedTestResults() {
+		if updateSpeedTestResults(&c) {
 			break
 		}
 		time.Sleep(10 * time.Second)
@@ -48,7 +57,7 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(c.intervalDuration)
-			updateSpeedTestResults()
+			updateSpeedTestResults(&c)
 		}
 	}()
 
@@ -60,7 +69,7 @@ func main() {
 	}
 }
 
-func updateSpeedTestResults() (success bool) {
+func updateSpeedTestResults(c *Config) (success bool) {
 
 	log.Debug("running speed test")
 	start := time.Now()
@@ -74,9 +83,9 @@ func updateSpeedTestResults() (success bool) {
 		log.Warn(err)
 		log.Warnf("stdout %s", outb.String())
 		log.Warnf("stderr %s", errb.String())
-		metricErrors.WithLabelValues("cmd_error").Inc()
-		metricErrorTimestamp.Set(float64(time.Now().Unix()))
-		metricRuns.WithLabelValues("failed").Inc()
+		metricLastRun.WithLabelValues(c.NameLabel, "failed").Set(float64(time.Now().Unix()))
+		metricRuns.WithLabelValues(c.NameLabel, "failed").Inc()
+		metricRunDuration.WithLabelValues(c.NameLabel, "failed").Observe(time.Since(start).Seconds())
 		return false
 	}
 
@@ -84,69 +93,70 @@ func updateSpeedTestResults() (success bool) {
 
 	if outb.String() == "" {
 		log.Warn("empty results")
-		metricErrors.WithLabelValues("empty_results").Inc()
-		metricErrorTimestamp.Set(float64(time.Now().Unix()))
-		metricRuns.WithLabelValues("failed").Inc()
+		metricLastRun.WithLabelValues(c.NameLabel, "failed").Set(float64(time.Now().Unix()))
+		metricRuns.WithLabelValues(c.NameLabel, "failed").Inc()
+		metricRunDuration.WithLabelValues(c.NameLabel, "failed").Observe(time.Since(start).Seconds())
 		return false
 	}
 
 	err = json.Unmarshal(outb.Bytes(), speedTestResults)
 	if err != nil {
 		log.Warnf("unmarshal error: %v", err)
-		metricErrors.WithLabelValues("unmarshal_error").Inc()
-		metricErrorTimestamp.Set(float64(time.Now().Unix()))
-		metricRuns.WithLabelValues("failed").Inc()
+		metricLastRun.WithLabelValues(c.NameLabel, "failed").Set(float64(time.Now().Unix()))
+		metricRuns.WithLabelValues(c.NameLabel, "failed").Inc()
+		metricRunDuration.WithLabelValues(c.NameLabel, "failed").Observe(time.Since(start).Seconds())
 		return false
 	}
 
 	if speedTestResults.Type != "result" {
 		log.Warnf("non-result response: %s", outb.Bytes())
-		metricErrors.WithLabelValues("non_result_response").Inc()
-		metricErrorTimestamp.Set(float64(time.Now().Unix()))
-		metricRuns.WithLabelValues("failed").Inc()
+		metricLastRun.WithLabelValues(c.NameLabel, "failed").Set(float64(time.Now().Unix()))
+		metricRuns.WithLabelValues(c.NameLabel, "failed").Inc()
+		metricRunDuration.WithLabelValues(c.NameLabel, "failed").Observe(time.Since(start).Seconds())
 		return false
 	}
 
 	// Run Info
 	runDuration := time.Since(start)
-	metricRunDuration.Observe(runDuration.Seconds())
-	metricLastRun.Set(float64(speedTestResults.Timestamp.Unix()))
+	metricRunDuration.WithLabelValues(c.NameLabel, "succeeded").Observe(runDuration.Seconds())
+	metricLastRun.WithLabelValues(c.NameLabel, "succeeded").Set(float64(speedTestResults.Timestamp.Unix()))
 
 	// Ping
-	metricPingJitter.Set(float64(speedTestResults.Ping.Jitter / 1000))
-	metricPingLatency.Set(float64(speedTestResults.Ping.Latency / 1000))
-	metricPingLow.Set(float64(speedTestResults.Ping.Low / 1000))
-	metricPingHigh.Set(float64(speedTestResults.Ping.High / 1000))
+	metricPingJitter.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Ping.Jitter / 1000))
+	metricPingLatency.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Ping.Latency / 1000))
+	metricPingLow.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Ping.Low / 1000))
+	metricPingHigh.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Ping.High / 1000))
 
 	// Download
-	metricDownloadBandwidth.Set(float64(speedTestResults.Download.Bandwidth))
-	metricDownloadBytes.Add(float64(speedTestResults.Download.Bytes))
-	metricDownloadElapsed.Add(float64(speedTestResults.Download.Elapsed))
-	metricDownloadLatencyIQM.Set(float64(speedTestResults.Download.Latency.IQM / 1000))
-	metricDownloadLatencyLow.Set(float64(speedTestResults.Download.Latency.Low / 1000))
-	metricDownloadLatencyHigh.Set(float64(speedTestResults.Download.Latency.High / 1000))
-	metricDownloadLatencyJitter.Set(float64(speedTestResults.Download.Latency.Jitter / 1000))
+	metricDownloadBandwidth.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Download.Bandwidth))
+	metricDownloadBytes.WithLabelValues(c.NameLabel).Add(float64(speedTestResults.Download.Bytes))
+	metricDownloadElapsed.WithLabelValues(c.NameLabel).Add(float64(speedTestResults.Download.Elapsed / 1000))
+	metricDownloadLatencyIQM.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Download.Latency.IQM / 1000))
+	metricDownloadLatencyLow.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Download.Latency.Low / 1000))
+	metricDownloadLatencyHigh.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Download.Latency.High / 1000))
+	metricDownloadLatencyJitter.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Download.Latency.Jitter / 1000))
 
 	// Upload
-	metricUploadBandwidth.Set(float64(speedTestResults.Upload.Bandwidth))
-	metricUploadBytes.Add(float64(speedTestResults.Upload.Bytes))
-	metricUploadElapsed.Add(float64(speedTestResults.Upload.Elapsed))
-	metricUploadLatencyIQM.Set(float64(speedTestResults.Upload.Latency.IQM / 1000))
-	metricUploadLatencyLow.Set(float64(speedTestResults.Upload.Latency.Low / 1000))
-	metricUploadLatencyHigh.Set(float64(speedTestResults.Upload.Latency.High / 1000))
-	metricUploadLatencyJitter.Set(float64(speedTestResults.Upload.Latency.Jitter / 1000))
+	metricUploadBandwidth.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Upload.Bandwidth))
+	metricUploadBytes.WithLabelValues(c.NameLabel).Add(float64(speedTestResults.Upload.Bytes))
+	metricUploadElapsed.WithLabelValues(c.NameLabel).Add(float64(speedTestResults.Upload.Elapsed / 1000))
+	metricUploadLatencyIQM.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Upload.Latency.IQM / 1000))
+	metricUploadLatencyLow.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Upload.Latency.Low / 1000))
+	metricUploadLatencyHigh.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Upload.Latency.High / 1000))
+	metricUploadLatencyJitter.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.Upload.Latency.Jitter / 1000))
 
 	// General Info
-	metricPacketLoss.Set(float64(speedTestResults.PacketLoss))
+	metricPacketLoss.WithLabelValues(c.NameLabel).Set(float64(speedTestResults.PacketLoss))
 	metricInfo.Reset()
-	metricInfo.WithLabelValues(speedTestResults.ISP, speedTestResults.Iface.ExternalIP).Set(1)
+	metricInfo.WithLabelValues(c.NameLabel, speedTestResults.ISP, speedTestResults.Iface.ExternalIP).Set(1)
 	isVPN := 0
 	if speedTestResults.Iface.IsVPN {
 		isVPN = 1
 	}
-	metricVPNStatus.Set(float64(isVPN))
+	metricVPNStatus.WithLabelValues(c.NameLabel).Set(float64(isVPN))
 	metricServerInfo.Reset()
 	metricServerInfo.WithLabelValues(
+		c.NameLabel,
 		fmt.Sprintf("%d", speedTestResults.Server.ID),
 		speedTestResults.Server.Host,
 		fmt.Sprintf("%d", speedTestResults.Server.Port),
@@ -155,7 +165,7 @@ func updateSpeedTestResults() (success bool) {
 		speedTestResults.Server.Country,
 		speedTestResults.Server.IP,
 	).Set(1)
-	metricRuns.WithLabelValues("succeeded").Inc()
+	metricRuns.WithLabelValues(c.NameLabel, "succeeded").Inc()
 
 	log.Debugf("speed test completed in %s", runDuration.String())
 
