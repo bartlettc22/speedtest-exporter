@@ -12,7 +12,7 @@ RUN wget -O speedtest.tgz https://install.speedtest.net/app/cli/ookla-speedtest-
 COPY ./ /app
 
 WORKDIR /app
-RUN CGO_ENABLED=0 GOOS=linux go build -o ./speedtest-exporter
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -o ./speedtest-exporter
 
 FROM alpine as ca
 

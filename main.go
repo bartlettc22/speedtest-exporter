@@ -82,20 +82,9 @@ func updateSpeedTestResults() (success bool) {
 
 	speedTestResults := &SpeedTestResults{}
 
-	failed := false
 	if outb.String() == "" {
 		log.Warn("empty results")
 		metricErrors.WithLabelValues("empty_results").Inc()
-		failed = true
-	}
-
-	if errb.String() != "" {
-		log.Warnf("error fetching results: %v", errb.String())
-		metricErrors.WithLabelValues("error").Inc()
-		failed = true
-	}
-
-	if failed {
 		metricErrorTimestamp.Set(float64(time.Now().Unix()))
 		metricRuns.WithLabelValues("failed").Inc()
 		return false
@@ -103,7 +92,16 @@ func updateSpeedTestResults() (success bool) {
 
 	err = json.Unmarshal(outb.Bytes(), speedTestResults)
 	if err != nil {
+		log.Warnf("unmarshal error: %v", err)
 		metricErrors.WithLabelValues("unmarshal_error").Inc()
+		metricErrorTimestamp.Set(float64(time.Now().Unix()))
+		metricRuns.WithLabelValues("failed").Inc()
+		return false
+	}
+
+	if speedTestResults.Type != "result" {
+		log.Warnf("non-result response: %s", outb.Bytes())
+		metricErrors.WithLabelValues("non_result_response").Inc()
 		metricErrorTimestamp.Set(float64(time.Now().Unix()))
 		metricRuns.WithLabelValues("failed").Inc()
 		return false
