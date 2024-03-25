@@ -1,0 +1,11 @@
+services:
+  speedtest-exporter:
+      expose:
+        - 8080
+      ports:
+        - 8080:8080
+      image: ghcr.io/bartlettc22/speedtest-exporter:v0.2.0
+      environment:
+        # Default 1hr
+        - SPEEDTEST_INTERVAL_SECONDS=3600
+        - SPEEDTEST_DEBUG=0

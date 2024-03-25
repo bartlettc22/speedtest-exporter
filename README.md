@@ -1,6 +1,8 @@
 # Speed Test Exporter
 Runs a [Ookla Speedtest®](https://www.speedtest.net/) at regular intervals and exports the results in Prometheus format.
 
+![dashboard screenshot](dashboard/dashboard.png "Speedtest Dashboard")
+
 ## Config
 Configuration is through the following environment variables
 
@@ -8,127 +10,62 @@ Configuration is through the following environment variables
 |-|-|-|-|
 |`SPEEDTEST_DEBUG`|Enables debug logs|bool|`false`|
 |`SPEEDTEST_LISTEN_PORT`|Listen port for metrics|int|`8080`|
-|`SPEEDTEST_INTERVAL_SECONDS`|Time period between tests, in seconds|int|`300`|
+|`SPEEDTEST_INTERVAL_SECONDS`|Time period between tests, in seconds|int|`3600`|
 |`SPEEDTEST_NAME_LABEL`|Value that is filled in for `name` label on all metrics.  Intended to be used to distinguish between tests in different environments.|string|`default`|
 
-## Metrics
+## Prometheus Configuration
+
+Example Prometheus configuration (assuming Prometheus is running on the same host machine):
+
+```yaml
+scrape_configs:
+  - job_name: speedtest
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+        - 127.0.0.1:8080
+    scrape_interval: 30s
+    scrape_timeout: 10s
 ```
-# HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
-# TYPE go_gc_duration_seconds summary
-go_gc_duration_seconds{quantile="0"} 0
-go_gc_duration_seconds{quantile="0.25"} 0
-go_gc_duration_seconds{quantile="0.5"} 0
-go_gc_duration_seconds{quantile="0.75"} 0
-go_gc_duration_seconds{quantile="1"} 0
-go_gc_duration_seconds_sum 0
-go_gc_duration_seconds_count 0
-# HELP go_goroutines Number of goroutines that currently exist.
-# TYPE go_goroutines gauge
-go_goroutines 7
-# HELP go_info Information about the Go environment.
-# TYPE go_info gauge
-go_info{version="go1.21.7"} 1
-# HELP go_memstats_alloc_bytes Number of bytes allocated and still in use.
-# TYPE go_memstats_alloc_bytes gauge
-go_memstats_alloc_bytes 235456
-# HELP go_memstats_alloc_bytes_total Total number of bytes allocated, even if freed.
-# TYPE go_memstats_alloc_bytes_total counter
-go_memstats_alloc_bytes_total 235456
-# HELP go_memstats_buck_hash_sys_bytes Number of bytes used by the profiling bucket hash table.
-# TYPE go_memstats_buck_hash_sys_bytes gauge
-go_memstats_buck_hash_sys_bytes 4282
-# HELP go_memstats_frees_total Total number of frees.
-# TYPE go_memstats_frees_total counter
-go_memstats_frees_total 0
-# HELP go_memstats_gc_sys_bytes Number of bytes used for garbage collection system metadata.
-# TYPE go_memstats_gc_sys_bytes gauge
-go_memstats_gc_sys_bytes 2.477616e+06
-# HELP go_memstats_heap_alloc_bytes Number of heap bytes allocated and still in use.
-# TYPE go_memstats_heap_alloc_bytes gauge
-go_memstats_heap_alloc_bytes 235456
-# HELP go_memstats_heap_idle_bytes Number of heap bytes waiting to be used.
-# TYPE go_memstats_heap_idle_bytes gauge
-go_memstats_heap_idle_bytes 2.097152e+06
-# HELP go_memstats_heap_inuse_bytes Number of heap bytes that are in use.
-# TYPE go_memstats_heap_inuse_bytes gauge
-go_memstats_heap_inuse_bytes 1.671168e+06
-# HELP go_memstats_heap_objects Number of allocated objects.
-# TYPE go_memstats_heap_objects gauge
-go_memstats_heap_objects 603
-# HELP go_memstats_heap_released_bytes Number of heap bytes released to OS.
-# TYPE go_memstats_heap_released_bytes gauge
-go_memstats_heap_released_bytes 2.097152e+06
-# HELP go_memstats_heap_sys_bytes Number of heap bytes obtained from system.
-# TYPE go_memstats_heap_sys_bytes gauge
-go_memstats_heap_sys_bytes 3.76832e+06
-# HELP go_memstats_last_gc_time_seconds Number of seconds since 1970 of last garbage collection.
-# TYPE go_memstats_last_gc_time_seconds gauge
-go_memstats_last_gc_time_seconds 0
-# HELP go_memstats_lookups_total Total number of pointer lookups.
-# TYPE go_memstats_lookups_total counter
-go_memstats_lookups_total 0
-# HELP go_memstats_mallocs_total Total number of mallocs.
-# TYPE go_memstats_mallocs_total counter
-go_memstats_mallocs_total 603
-# HELP go_memstats_mcache_inuse_bytes Number of bytes in use by mcache structures.
-# TYPE go_memstats_mcache_inuse_bytes gauge
-go_memstats_mcache_inuse_bytes 9600
-# HELP go_memstats_mcache_sys_bytes Number of bytes used for mcache structures obtained from system.
-# TYPE go_memstats_mcache_sys_bytes gauge
-go_memstats_mcache_sys_bytes 15600
-# HELP go_memstats_mspan_inuse_bytes Number of bytes in use by mspan structures.
-# TYPE go_memstats_mspan_inuse_bytes gauge
-go_memstats_mspan_inuse_bytes 56280
-# HELP go_memstats_mspan_sys_bytes Number of bytes used for mspan structures obtained from system.
-# TYPE go_memstats_mspan_sys_bytes gauge
-go_memstats_mspan_sys_bytes 65184
-# HELP go_memstats_next_gc_bytes Number of heap bytes when next garbage collection will take place.
-# TYPE go_memstats_next_gc_bytes gauge
-go_memstats_next_gc_bytes 4.194304e+06
-# HELP go_memstats_other_sys_bytes Number of bytes used for other system allocations.
-# TYPE go_memstats_other_sys_bytes gauge
-go_memstats_other_sys_bytes 1.212822e+06
-# HELP go_memstats_stack_inuse_bytes Number of bytes in use by the stack allocator.
-# TYPE go_memstats_stack_inuse_bytes gauge
-go_memstats_stack_inuse_bytes 425984
-# HELP go_memstats_stack_sys_bytes Number of bytes obtained from system for stack allocator.
-# TYPE go_memstats_stack_sys_bytes gauge
-go_memstats_stack_sys_bytes 425984
-# HELP go_memstats_sys_bytes Number of bytes obtained from system.
-# TYPE go_memstats_sys_bytes gauge
-go_memstats_sys_bytes 7.969808e+06
-# HELP go_threads Number of OS threads created.
-# TYPE go_threads gauge
-go_threads 5
-# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
-# TYPE process_cpu_seconds_total counter
-process_cpu_seconds_total 0.02
-# HELP process_max_fds Maximum number of open file descriptors.
-# TYPE process_max_fds gauge
-process_max_fds 524288
-# HELP process_open_fds Number of open file descriptors.
-# TYPE process_open_fds gauge
-process_open_fds 9
-# HELP process_resident_memory_bytes Resident memory size in bytes.
-# TYPE process_resident_memory_bytes gauge
-process_resident_memory_bytes 7.671808e+06
-# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
-# TYPE process_start_time_seconds gauge
-process_start_time_seconds 1.70896529397e+09
-# HELP process_virtual_memory_bytes Virtual memory size in bytes.
-# TYPE process_virtual_memory_bytes gauge
-process_virtual_memory_bytes 1.263747072e+09
-# HELP process_virtual_memory_max_bytes Maximum amount of virtual memory available in bytes.
-# TYPE process_virtual_memory_max_bytes gauge
-process_virtual_memory_max_bytes 1.8446744073709552e+19
-# HELP promhttp_metric_handler_requests_in_flight Current number of scrapes being served.
-# TYPE promhttp_metric_handler_requests_in_flight gauge
-promhttp_metric_handler_requests_in_flight 1
-# HELP promhttp_metric_handler_requests_total Total number of scrapes by HTTP status code.
-# TYPE promhttp_metric_handler_requests_total counter
-promhttp_metric_handler_requests_total{code="200"} 0
-promhttp_metric_handler_requests_total{code="500"} 0
-promhttp_metric_handler_requests_total{code="503"} 0
+
+## Install and Deploy
+
+### Docker Compose
+```yaml
+services:
+  speedtest-exporter:
+      expose:
+        - 8080
+      ports:
+        - 8080:8080
+      image: ghcr.io/bartlettc22/speedtest-exporter:v0.2.0
+      environment:
+        # Default 1hr
+        - SPEEDTEST_INTERVAL_SECONDS=3600
+        - SPEEDTEST_DEBUG=0
+```
+
+Docker compose file can also be found at [deploy/compose/compose.yaml](deploy/compose/compose.yaml)
+
+### Helm
+Speedtest Export can be installed into Kubernetes via Helm.
+
+```bash
+git clone https://github.com/bartlettc22/speedtest-exporter.git
+cd speedtest-exporter/deploy/chart
+
+helm upgrade --install speedtest-exporter ./
+```
+
+See [deploy/chart](deploy/chart) for more details on Helm values.
+
+## Grafana Dashboard
+Dashboard can be downloaded and imported at [dashboard/dashboard.json](dashboard/dashboard.json)
+
+## Metrics
+Metrics are exposed at `:8080/metrics` by default and provide the following:
+
+```yaml
 # HELP speedtest_download_bandwidth The download bandwidth, in bytes/s, of last successful speed test
 # TYPE speedtest_download_bandwidth gauge
 speedtest_download_bandwidth{name="default"} 1.17641899e+08

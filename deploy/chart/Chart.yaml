@@ -1,0 +1,6 @@
+apiVersion: v2
+name: speedtest-exporter
+description: A Helm chart for exporting speedtest data to Prometheus
+type: application
+version: 0.1.0
+appVersion: v0.2.0
